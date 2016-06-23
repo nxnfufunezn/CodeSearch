@@ -4,3 +4,5 @@ version = "0.1.0"
 authors = ["nxnfufunezn <nxnfufunezn@gmail.com>"]
 
 [dependencies]
+ansi_term = "0.7"
+getopts = "0.2"
