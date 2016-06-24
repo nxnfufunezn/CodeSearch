@@ -1,22 +1,20 @@
-use std::io;
 use std::io::prelude::*;
+use std::io;
 use std::path::Path;
 use std::fs::{self, DirEntry, File};
 use std::collections::HashMap;
-use std::str;
 use pprint;
-use results::InFileSearch;
+use crossbeam;
 
 type Symbol = char;
 type State = usize;
 
+#[derive(Debug)]
 pub enum Error {
-    PatternNotFound,
     FileNotReadable(String),
     NotAbleToOpenFile(String),
 }
 
-#[derive(Debug)]
 pub struct Pattern {
     pattern: String,
     dfa: HashMap<Symbol, Vec<State>>,
@@ -52,7 +50,7 @@ impl Pattern {
     }
     /// search fn uses Knuth-Morris-Pratt for searching pattern in files
     /// returns: Result index on success and Error on pattern mismatch
-    pub fn search(&mut self, dir: &DirEntry) -> Result<(), Error> {
+    pub fn search(&self, dir: DirEntry) -> Result<(), Error> {
         let mut buffer = String::new();
         File::open(dir.path())
             .map_err(|err| Error::NotAbleToOpenFile(err.to_string()))
@@ -64,7 +62,8 @@ impl Pattern {
         let total_state = self.pattern.chars().count();
         for (line_no, line) in buffer.lines().enumerate() {
             let mut prev_state = 0;
-            for chr in line.chars() {
+            let mut pos_idx = 0;
+            for (idx, chr) in line.char_indices() {
                 if prev_state == total_state {
                     break;
                 }
@@ -72,13 +71,16 @@ impl Pattern {
                     Some(val) => val[prev_state],
                     None => 0,
                 };
+                pos_idx = idx;
             }
             if prev_state == total_state {
                 if pfname == true {
                     pprint::print_fname(dir.path().to_str().unwrap());
                     pfname = false;
                 }
-                pprint::print_line(line_no, line);
+                let (strt, pat) = line.split_at(pos_idx - total_state + 1);
+                let (pat, end) = pat.split_at(total_state);
+                pprint::print_line(line_no, (strt, pat, end));
             }
         }
         Ok(())
@@ -86,17 +88,21 @@ impl Pattern {
 
     /// This function recursively walks the dir path and applies search fn
     /// on every entry which is file and not directory
-    pub fn recursive_search(&mut self, dir: &Path) -> io::Result<()> {
-        if try!(fs::metadata(dir)).is_dir() {
-            for entry in try!(fs::read_dir(dir)) {
-                let entry = try!(entry);
-                if try!(fs::metadata(entry.path())).is_dir() {
-                    try!(self.recursive_search(&entry.path()));
-                } else {
-                    self.search(&entry);
+    pub fn recursive_search(&self, dir: &Path) {
+        if fs::metadata(dir).unwrap().is_dir() {
+            crossbeam::scope(|scope| {
+                for entry in fs::read_dir(dir).unwrap() {
+                    let entry = entry.unwrap();
+                    if fs::metadata(entry.path()).unwrap().is_dir() {
+                        self.recursive_search(&entry.path());
+                    } else {
+                        scope.spawn(move || {
+                            self.search(entry).unwrap();
+                        });
+                    }
                 }
-            }
+                
+            });
         }
-        Ok(())
     }
 }

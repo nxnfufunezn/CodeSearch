@@ -1,5 +1,6 @@
 extern crate ansi_term;
 extern crate getopts;
+extern crate crossbeam;
 
 use std::path::Path;
 use getopts::Options;

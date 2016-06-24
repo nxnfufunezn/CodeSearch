@@ -6,3 +6,4 @@ authors = ["nxnfufunezn <nxnfufunezn@gmail.com>"]
 [dependencies]
 ansi_term = "0.7"
 getopts = "0.2"
+crossbeam = "0.2"
