@@ -7,10 +7,14 @@ use getopts::Options;
 use std::env;
 
 mod search;
+mod kmp;
+mod bmh;
 mod index;
 mod pprint;
 mod results;
-use search::Pattern;
+use kmp::KMP;
+use bmh::BMH;
+use search::SearchAlgorithm;
 
 fn print_usage(program: &str, opts: Options) {
     let usage = format!("Usage: {} FILE [search_pattern]", program);
@@ -38,5 +42,5 @@ fn main() {
         return;
     };
     let path = Path::new(".");
-    Pattern::new(input).recursive_search(path);
+    KMP::new(input).recursive_search(path);
 }
