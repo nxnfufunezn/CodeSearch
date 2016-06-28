@@ -1,5 +1,4 @@
 use std::io::prelude::*;
-use std::cmp::Ordering;
 use std::fs::{DirEntry, File};
 use search::{Error, SearchAlgorithm};
 use pprint;
@@ -34,9 +33,11 @@ impl SearchAlgorithm for BMH {
         let mut pfname = true;
         let pat_len = self.pattern.chars().count();
         for (line_no, line) in buffer.lines().enumerate() {
-            let first_ch = self.pattern.chars().nth(0).unwrap();
-            let middle_ch = self.pattern.chars().nth(pat_len / 2).unwrap();
-            let last_ch = self.pattern.chars().nth(pat_len - 1).unwrap();
+            let bline = line.as_bytes();
+            let bpattern = self.pattern.as_bytes();
+            let first_ch = bpattern[0];
+            let middle_ch = bpattern[pat_len / 2];
+            let last_ch = bpattern[pat_len - 1];
             let line_len = line.chars().count();
 
             let mut j = 0;
@@ -44,21 +45,16 @@ impl SearchAlgorithm for BMH {
                 continue;
             }
             while j <= (line_len - pat_len) {
-                let c = line.chars().nth( j + pat_len - 1).unwrap();
-                let mid_match = line.chars().nth(j + (pat_len/2)).unwrap();
-                if last_ch == c && middle_ch == mid_match &&
-                    first_ch == line.chars().nth(j).unwrap() {
-                        let second_ch = self.pattern.chars().skip(1).take(pat_len - 2);
-                        let text = line.chars().skip(j + 1).take(pat_len - 2);
-                        if second_ch.cmp(text) == Ordering::Equal {
-                            if pfname == true {
-                                pprint::print_fname(dir.path().to_str().unwrap());
-                                pfname = false;
-                            }
-                            let (strt, pat) = line.split_at(j);
-                            let (pat, end) = pat.split_at(pat_len);
-                            pprint::print_line(line_no+1, (strt, pat, end));
+                let c = bline[j + pat_len -1];
+                if last_ch == c && middle_ch == bline[j + (pat_len/2)] &&
+                    first_ch == bline[j] && &bpattern[1..(pat_len - 2)] == &bline[(j+1)..(pat_len - 2)] {
+                        if pfname == true {
+                            pprint::print_fname(dir.path().to_str().unwrap());
+                            pfname = false;
                         }
+                        let (strt, pat) = line.split_at(j);
+                        let (pat, end) = pat.split_at(pat_len);
+                        pprint::print_line(line_no+1, (strt, pat, end));
                     }
                 j += self.bc_arr[c as usize];
             }
